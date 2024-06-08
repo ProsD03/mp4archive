@@ -8,6 +8,6 @@ This serves no pratical use, as storing files this way gives no real advantages,
 to create stenography puzzles or to hide files plain in sight.
 
 > The idea for this software came from the YouTube video "Install MS-DOS 6.22 to your brain with one simple video" by
-> dataeeto ([link](https://www.youtube.com/watch? v=Y2L7_2Wvycc)). They use FFMPEG to create the video, which also
+> dataeeto ([link](https://www.youtube.com/watch?v=Y2L7_2Wvycc)). They use FFMPEG to create the video, which also
 > feature sound. MP4Archive aims to give a better user experience while trying these type of experiments.
 
