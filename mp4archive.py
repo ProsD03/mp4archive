@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+
 from mp4archive_lib.core import MP4ArchiveFactory
 
 
@@ -25,9 +26,13 @@ if args.encode:
     if not os.path.isfile(args.encode):
         sys.stderr.write(f"error: value of -e/--encode must be a valid file path (value: {args.encode})")
         exit(1)
+    encoder = MP4ArchiveFactory()
+    encoder.encode(args.encode, args.output)
+
 elif args.decode:
-    if not os.path.isfile(args.encode):
+    if not os.path.isfile(args.decode):
         sys.stderr.write(f"error: value of -d/--decode must be a valid file path (value: {args.encode})")
         exit(1)
+    raise NotImplementedError
 else:
     parser.print_help()
