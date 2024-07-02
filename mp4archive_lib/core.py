@@ -14,7 +14,7 @@ class MP4ArchiveFactory:
 
     __metadata_divisions__ = 4
     __metadata_divisions_size__ = int(__size__ / __metadata_divisions__)
-    __metadata_header__ = "E070E00020A0"
+    __metadata_header__ = "405040c04050"
 
     def __init__(self, size: int = None, divisions: int = None):
         if size:
@@ -33,8 +33,9 @@ class MP4ArchiveFactory:
 
         file = os.path.split(filename)[1]
         name, ext = os.path.splitext(file)
-        name = filename.encode('utf-8').hex()
-        ext = ext.encode('utf-8').hex()
+        print(ext.split('.')[-1])
+        name = name.encode('utf-8').hex()
+        ext = ext.split('.')[-1].encode('utf-8').hex()
 
         for i in range(20):
             if i > len(name) - 1:
@@ -58,7 +59,7 @@ class MP4ArchiveFactory:
         divisions_hex = hex(self.__divisions__)
         while len(divisions_hex) <= 8:
             divisions_hex = divisions_hex + "0"
-        divisions_hex = divisions_hex[2:-1]
+        divisions_hex = divisions_hex.split("x")[-1]
 
         for i in range(len(divisions_hex)):
             color_bytes.append(divisions_hex[i] + "0")
@@ -86,7 +87,6 @@ class MP4ArchiveFactory:
             '-vcodec': 'libx264rgb',
             '-pix_fmt': 'rgb24',
             '-colorspace': 'rgb',
-            '-preset': 'fast'
         })
         writer.writeFrame(self.__create_metadata__(input_file))
         with open(input_file, "rb") as f:
