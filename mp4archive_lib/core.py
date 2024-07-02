@@ -6,7 +6,14 @@ import numpy as np
 from tqdm import tqdm
 
 
+class AmbiguityError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+
 class MP4ArchiveFactory:
+    __hex_charset__ = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
+
     __size__ = 1080
 
     __divisions__ = 20
@@ -21,6 +28,33 @@ class MP4ArchiveFactory:
             self.__size__ = size
         if divisions:
             self.__divisions__ = divisions
+
+    def __correct_byte__(self, byte: str) -> str:
+        if len(byte) != 2:
+            raise ValueError("Incorrect byte length. Byte must be 2 characters long.")
+        nibbles = list(byte)
+        print(nibbles)
+        if nibbles[0] not in self.__hex_charset__ or nibbles[1] not in self.__hex_charset__:
+            raise ValueError("Incorrect byte format. Byte must be hex.")
+
+        if nibbles[1] == "0":
+            return nibbles[0]
+
+        tolerance_index = self.__hex_charset__.index(nibbles[1])
+        data_index = self.__hex_charset__.index(nibbles[0])
+        if tolerance_index == 8:
+            raise AmbiguityError(
+                "Byte is ambiguous, tolerance value is in the middle of the charset. Re-encode video with different settings.")
+        elif tolerance_index > 8:
+            if data_index == len(self.__hex_charset__) - 1:
+                raise AmbiguityError(
+                    "Byte is ambiguous, data value is already F but tolerance value indicates that the value must be rounded up. Re-encode video with different settings.")
+            return self.__hex_charset__[data_index + 1]
+        else:
+            if data_index == 0:
+                raise AmbiguityError(
+                    "Byte is ambiguous, data value is already 0 but tolerance value indicates that the value must be rounded down. Re-encode video with different settings.")
+            return self.__hex_charset__[data_index - 1]
 
     def __create_metadata__(self, filename: str) -> np.array:
         pixels = []
@@ -55,6 +89,8 @@ class MP4ArchiveFactory:
             if len(color_bytes) == 3:
                 pixels.append((int(color_bytes[0], 16), int(color_bytes[1], 16), int(color_bytes[2], 16)))
                 color_bytes = []
+
+        pixels.append((0, 0, 0))
 
         divisions_hex = hex(self.__divisions__)
         while len(divisions_hex) <= 8:
@@ -92,7 +128,6 @@ class MP4ArchiveFactory:
         with open(input_file, "rb") as f:
             data = f.read()
         color_bytes = []
-
         for i in range(len(data)):
             byte = hex(data[i]).split('x')[1]
             if len(byte) < 2:
@@ -126,3 +161,6 @@ class MP4ArchiveFactory:
         for thread in threads:
             thread.join()
         writer.close()
+
+    def decode(self, input_file: str):
+        return
