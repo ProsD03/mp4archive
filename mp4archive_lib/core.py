@@ -27,15 +27,15 @@ class MP4ArchiveFactory:
         return int(hexcode[:2], 16), int(hexcode[2:4], 16), int(hexcode[4:], 16)
 
     @property
-    def _division_size(self):
-        return self._size // self._divisions
-
-    @property
     def _metadata_frame(self):
         frame = np.array([[[0, 0, 0] for i in range(3)] for i in range(3)])
         frame[0, 0] = self._hex_to_rgb(self._magic)
         frame[0, 1] = (self._divisions, 0, 0)
-        frame[0, 2] = self._hex_to_rgb(self._extension.encode("ascii").hex())
+
+        hex_extension = self._extension.encode("ascii").hex()
+        while len(hex_extension) < 6:
+            hex_extension += 0
+        frame[0, 2] = self._hex_to_rgb(hex_extension)
         codepoints = []
         pos = 0
         for i, char in enumerate(self._filename):
@@ -50,6 +50,24 @@ class MP4ArchiveFactory:
                 pos += 1
                 codepoints.clear()
         return frame.repeat(self._size // 3, axis=0).repeat(self._size // 3, axis=1)
+
+    def _decode_metadata(self, *, frame: np.array):
+        if frame.shape != (3, 3, 3):
+            raise ValueError("Metadata must be a RGB frame of 3x3 pixels.")
+        if not np.array_equal(frame[0, 0], self._hex_to_rgb(self._magic)):
+            raise ValueError("Video is not compatible or was not made with MP4Archive_lib.")
+        self._divisions = frame[0, 1, 0]
+        self._extension = ''.join([chr(frame[0, 2, n]) for n in range(3)])
+
+        pos = 0
+        temp_name = ""
+        while pos != 6:
+            pixel = frame[1 + pos // 3, pos % 3]
+            for byte in pixel:
+                if byte != 0:
+                    temp_name += chr(byte)
+            pos += 1
+        self._filename = temp_name
 
     def __init__(self, *args, **kwargs):
         assert skvideo.getFFmpegPath()
@@ -69,6 +87,7 @@ class MP4ArchiveFactory:
                                              '-vcodec': 'libx264rgb',
                                              '-pix_fmt': 'rgb24',
                                              '-colorspace': 'rgb',
+                                             '-crf': '0',
                                          })
         writer.writeFrame(self._metadata_frame)
 
@@ -95,6 +114,27 @@ class MP4ArchiveFactory:
 
         writer.close()
 
-        def decode(self, *, input_path: str, output_path: str):
-            # smaller_img = bigger_img[::2, ::2]
-            raise NotImplementedError
+    def decode(self, *, input_path: str, output_path: str):
+        reader = skvideo.io.FFmpegReader(input_path)
+        self._size = reader.getShape()[1]
+        metadata = None
+        writer = None
+        progress = tqdm.tqdm(total=(reader.getShape()[0]-1) * (self._divisions * self._divisions) * 3, desc="Decoding...", unit="bytes")
+        for frame in reader:
+            if metadata is None:
+                frame = frame[::self._size // 3, ::self._size // 3]
+                metadata = frame
+                self._decode_metadata(frame=metadata)
+                writer = open(f"{output_path}{os.sep}{self._filename}.{self._extension}", "wb")
+            else:
+                pos = 0
+                frame = frame[::self._size // self._divisions, ::self._size // self._divisions]
+                while pos // self._divisions < self._divisions:
+                    pixel = frame[pos // self._divisions, pos % self._divisions]
+                    for byte in pixel:
+                        writer.write(byte)
+                        progress.update(1)
+                    pos += 1
+        writer.close()
+        reader.close()
+
