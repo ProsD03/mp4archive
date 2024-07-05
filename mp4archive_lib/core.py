@@ -119,7 +119,8 @@ class MP4ArchiveFactory:
         self._size = reader.getShape()[1]
         metadata = None
         writer = None
-        progress = tqdm.tqdm(total=(reader.getShape()[0]-1) * (self._divisions * self._divisions) * 3, desc="Decoding...", unit="bytes")
+        progress = tqdm.tqdm(total=(reader.getShape()[0] - 1) * (self._divisions * self._divisions) * 3,
+                             desc="Decoding...", unit="bytes")
         for frame in reader:
             if metadata is None:
                 frame = frame[::self._size // 3, ::self._size // 3]
@@ -137,4 +138,3 @@ class MP4ArchiveFactory:
                     pos += 1
         writer.close()
         reader.close()
-

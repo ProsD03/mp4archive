@@ -33,6 +33,9 @@ elif args.decode:
     if not os.path.isfile(args.decode):
         sys.stderr.write(f"error: value of -d/--decode must be a valid file path (value: {args.encode})")
         exit(1)
+    if not os.path.isdir(args.output):
+        sys.stderr.write(f"error: value of -o/--output must be a valid directory path (value: {args.encode})")
+        exit(1)
     decoder = MP4ArchiveFactory()
     decoder.decode(input_path=args.decode, output_path=args.output)
 else:
