@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-
+import warnings
 
 from mp4archive_lib.core import MP4ArchiveFactory
 
@@ -26,6 +26,9 @@ if args.encode:
     if not os.path.isfile(args.encode):
         sys.stderr.write(f"error: value of -e/--encode must be a valid file path (value: {args.encode})")
         exit(1)
+    if args.output.split(".")[-1] != "mp4":
+        warnings.warn("output path should be an mp4 file. extension has been added for convenience, but program may crash if path is a directory.", RuntimeWarning)
+        args.output += ".mp4"
     encoder = MP4ArchiveFactory()
     encoder.encode(input_path=args.encode, output_path=args.output)
 
