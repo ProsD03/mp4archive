@@ -1,3 +1,5 @@
+import warnings
+
 import skvideo.io
 import numpy as np
 import tqdm
@@ -69,6 +71,25 @@ class MP4ArchiveFactory:
             pos += 1
         self._filename = temp_name
 
+    def _heuristic_metdata(self, *, frame: np.array):
+        samepixels = 0
+        color = None
+        for i in range(self._size):
+            if color is None:
+                color = frame[0, i]
+                samepixels += 1
+            elif np.array_equal(frame[0, i], color):
+                samepixels += 1
+            else:
+                self._divisions = self._size // samepixels
+                if self._divisions == 3:
+                    try:
+                        warnings.warn("Division number came out as 3. Checking for a metadata frame.", RuntimeWarning)
+                        self._decode_metadata(frame=frame[::self._size // 3, ::self._size // 3])
+                    except ValueError:
+                        pass
+                break
+
     def __init__(self, *args, **kwargs):
         assert skvideo.getFFmpegPath()
         self._size = kwargs.get('size', self._size)
@@ -114,7 +135,7 @@ class MP4ArchiveFactory:
 
         writer.close()
 
-    def decode(self, *, input_path: str, output_path: str):
+    def decode(self, *, input_path: str, output_path: str, no_metadata: int = 0):
         reader = skvideo.io.FFmpegReader(input_path)
         self._size = reader.getShape()[1]
         metadata = None
@@ -123,9 +144,13 @@ class MP4ArchiveFactory:
                              desc="Decoding...", unit="bytes")
         for frame in reader:
             if metadata is None:
-                frame = frame[::self._size // 3, ::self._size // 3]
-                metadata = frame
-                self._decode_metadata(frame=metadata)
+                if not no_metadata:
+                    frame = frame[::self._size // 3, ::self._size // 3]
+                    metadata = frame
+                    self._decode_metadata(frame=metadata)
+                else:
+                    self._heuristic_metdata(frame=frame)
+                    metadata = True
                 writer = open(f"{output_path}{os.sep}{self._filename}.{self._extension}", "wb")
             else:
                 pos = 0

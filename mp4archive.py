@@ -20,6 +20,10 @@ mainop.add_argument('-d', '--decode', help="path to video to decode into file")
 
 parser.add_argument("-o", "--output", help="desired path for the output", required=True)
 
+parser.add_argument("-n", "--nometadata",
+                    help="enable if video doesn't have a metadata frame, enables heuristic checks", action="count",
+                    default=0)
+
 args = parser.parse_args()
 
 if args.encode:
@@ -27,7 +31,9 @@ if args.encode:
         sys.stderr.write(f"error: value of -e/--encode must be a valid file path (value: {args.encode})")
         exit(1)
     if args.output.split(".")[-1] != "mp4":
-        warnings.warn("output path should be an mp4 file. extension has been added for convenience, but program may crash if path is a directory.", RuntimeWarning)
+        warnings.warn(
+            "output path should be an mp4 file. extension has been added for convenience, but program may crash if path is a directory.",
+            RuntimeWarning)
         args.output += ".mp4"
     encoder = MP4ArchiveFactory()
     encoder.encode(input_path=args.encode, output_path=args.output)
@@ -40,6 +46,6 @@ elif args.decode:
         sys.stderr.write(f"error: value of -o/--output must be a valid directory path (value: {args.encode})")
         exit(1)
     decoder = MP4ArchiveFactory()
-    decoder.decode(input_path=args.decode, output_path=args.output)
+    decoder.decode(input_path=args.decode, output_path=args.output, no_metadata=args.nometadata)
 else:
     parser.print_help()
