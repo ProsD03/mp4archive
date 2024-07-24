@@ -6,6 +6,8 @@ import tqdm
 import string
 import os
 
+from . import exceptions
+
 np.int = np.int32
 np.float = np.float64
 np.bool = np.bool_
@@ -71,24 +73,31 @@ class MP4ArchiveFactory:
             pos += 1
         self._filename = temp_name
 
-    def _heuristic_metdata(self, *, frame: np.array):
-        samepixels = 0
+    def _heuristic_metadata(self, *, frame: np.array):
+        same_pixels = 0
         color = None
         for i in range(self._size):
             if color is None:
                 color = frame[0, i]
-                samepixels += 1
+                same_pixels += 1
             elif np.array_equal(frame[0, i], color):
-                samepixels += 1
+                same_pixels += 1
             else:
-                self._divisions = self._size // samepixels
+                if self._size % same_pixels != 0:
+                    warnings.warn("Two or more pixels with same color found. Continuing heuristic check.", RuntimeWarning)
+                    color = frame[0, i]
+                    same_pixels += 1
+                    pass
+                self._divisions = self._size // same_pixels
                 if self._divisions == 3:
                     try:
                         warnings.warn("Division number came out as 3. Checking for a metadata frame.", RuntimeWarning)
                         self._decode_metadata(frame=frame[::self._size // 3, ::self._size // 3])
                     except ValueError:
+                        warnings.warn("No metadata frame found. Continuing with 3 x 3 matrix.", RuntimeWarning)
                         pass
-                break
+                return
+        raise exceptions.HeuristicFailedException("First row has been analyzed and no valid pattern has been found.")
 
     def __init__(self, *args, **kwargs):
         assert skvideo.getFFmpegPath()
@@ -149,7 +158,7 @@ class MP4ArchiveFactory:
                     metadata = frame
                     self._decode_metadata(frame=metadata)
                 else:
-                    self._heuristic_metdata(frame=frame)
+                    self._heuristic_metadata(frame=frame)
                     metadata = True
                 writer = open(f"{output_path}{os.sep}{self._filename}.{self._extension}", "wb")
             else:
