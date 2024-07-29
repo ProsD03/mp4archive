@@ -26,6 +26,11 @@ class MP4ArchiveFactory:
 
     @staticmethod
     def _hex_to_rgb(hexcode: str):
+        """
+        Converts hex code to RBG (int tuple).
+        :param hexcode: RGB hex code. Must be 6 digits long, so the Alpha channel is not allowed.
+        :return: Tuple of ints, with one value for each channel.
+        """
         if len(hexcode) != 6:
             raise ValueError(f"Hexcode {hexcode} must be 6 digits (3 bytes).")
         elif not all(c in string.hexdigits for c in hexcode):
@@ -58,6 +63,12 @@ class MP4ArchiveFactory:
         return frame.repeat(self._size // 3, axis=0).repeat(self._size // 3, axis=1)
 
     def _decode_metadata(self, *, frame: np.array):
+        """
+        Decodes a frame, searching for the metadata values. Fails if first pixel is not the magic number.
+        Otherwise, tries to return valid values.
+        :param frame: ndarray of 3x3 size. Must be RGB.
+        :return:
+        """
         if frame.shape != (3, 3, 3):
             raise ValueError("Metadata must be a RGB frame of 3x3 pixels.")
         if not np.array_equal(frame[0, 0], self._hex_to_rgb(self._magic)):
@@ -76,6 +87,12 @@ class MP4ArchiveFactory:
         self._filename = temp_name
 
     def _heuristic_metadata(self, *, frame: np.array):
+        """
+        Decodes metadata from a generic frame using heuristic strategies. Automatically detects a valid metadata frame, if present.
+        Otherwise, tries to detect the number of divisions by counting the pixels with the same color in the first column.
+        :param frame: ndarray of any size. Must be RGB.
+        :return:
+        """
         same_pixels = 0
         color = None
         for i in range(self._size):
