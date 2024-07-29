@@ -23,7 +23,7 @@ parser.add_argument("-o", "--output", help="desired path for the output", requir
 parser.add_argument("-n", "--nometadata",
                     help="in encode mode, disables metadata generation. in decode mode, enables heuristic checks", action="count",
                     default=0)
-parser.add_argument("-d", "--divisions", help="number of divisions to divide the video into", type=int, default=15)
+parser.add_argument("-D", "--divisions", help="number of divisions to divide the video into", type=int, default=15)
 parser.add_argument("-s", "--size", help="size of square video in pixels (SxS)", type=int, default=1080)
 
 args = parser.parse_args()

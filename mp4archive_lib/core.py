@@ -2,6 +2,8 @@ import warnings
 
 import skvideo.io
 import numpy as np
+import magic
+import mimetypes
 import tqdm
 import string
 import os
@@ -77,26 +79,28 @@ class MP4ArchiveFactory:
         same_pixels = 0
         color = None
         for i in range(self._size):
+            print(frame[i, 0])
             if color is None:
-                color = frame[0, i]
+                color = frame[i, 0]
                 same_pixels += 1
-            elif np.array_equal(frame[0, i], color):
+            elif np.array_equal(frame[i, 0], color):
                 same_pixels += 1
             else:
                 if self._size % same_pixels != 0:
-                    warnings.warn("Two or more pixels with same color found. Continuing heuristic check.", RuntimeWarning)
-                    color = frame[0, i]
-                    same_pixels += 1
-                    pass
-                self._divisions = self._size // same_pixels
-                if self._divisions == 3:
-                    try:
-                        warnings.warn("Division number came out as 3. Checking for a metadata frame.", RuntimeWarning)
-                        self._decode_metadata(frame=frame[::self._size // 3, ::self._size // 3])
-                    except ValueError:
-                        warnings.warn("No metadata frame found. Continuing with 3 x 3 matrix.", RuntimeWarning)
-                        pass
-                return
+                    warnings.warn("Two or more pixels with same color found. Continuing heuristic check.",
+                                  RuntimeWarning)
+                    color = frame[i, 0]
+                    same_pixels = 1
+                else:
+                    self._divisions = self._size // same_pixels
+                    if self._divisions == 3:
+                        try:
+                            warnings.warn("Division number came out as 3. Checking for a metadata frame.", RuntimeWarning)
+                            self._decode_metadata(frame=frame[::self._size // 3, ::self._size // 3])
+                        except ValueError:
+                            warnings.warn("No metadata frame found. Continuing with 3 x 3 matrix.", RuntimeWarning)
+                            pass
+                    return
         raise exceptions.HeuristicFailedException("First row has been analyzed and no valid pattern has been found.")
 
     def __init__(self, *args, **kwargs):
@@ -155,8 +159,7 @@ class MP4ArchiveFactory:
         self._size = reader.getShape()[1]
         metadata = None
         writer = None
-        progress = tqdm.tqdm(total=(reader.getShape()[0] - 1) * (self._divisions * self._divisions) * 3,
-                             desc="Decoding...", unit="bytes")
+        progress = tqdm.tqdm(desc="Decoding...", unit="bytes")
         for frame in reader:
             if metadata is None:
                 if not no_metadata:
@@ -167,14 +170,22 @@ class MP4ArchiveFactory:
                     self._heuristic_metadata(frame=frame)
                     metadata = True
                 writer = open(f"{output_path}{os.sep}{self._filename}.{self._extension}", "wb")
-            else:
-                pos = 0
-                frame = frame[::self._size // self._divisions, ::self._size // self._divisions]
-                while pos // self._divisions < self._divisions:
-                    pixel = frame[pos // self._divisions, pos % self._divisions]
-                    for byte in pixel:
-                        writer.write(byte)
-                        progress.update(1)
-                    pos += 1
+            pos = 0
+            frame = frame[::self._size // self._divisions, ::self._size // self._divisions]
+            while pos // self._divisions < self._divisions:
+                pixel = frame[pos // self._divisions, pos % self._divisions]
+                for byte in pixel:
+                    writer.write(byte)
+                    progress.update(1)
+                pos += 1
         writer.close()
         reader.close()
+
+        if no_metadata:
+            mime = magic.from_file(f"{output_path}{os.sep}{self._filename}.{self._extension}", mime=True)
+            ext = mimetypes.guess_extension(mime)
+            if not ext:
+                warnings.warn("Could not determine extension without metadata. Saved as .bin.", RuntimeWarning)
+                return
+            os.rename(f"{output_path}{os.sep}{self._filename}.{self._extension}",
+                      f"{output_path}{os.sep}{self._filename}{ext}", )
