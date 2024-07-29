@@ -104,7 +104,12 @@ class MP4ArchiveFactory:
         self._size = kwargs.get('size', self._size)
         self._divisions = kwargs.get('divisions', self._divisions)
 
-    def encode(self, *, input_path: str, output_path: str):
+        if self._size % self._divisions != 0:
+            raise ValueError("Size must be divisible by division number.")
+        if self._divisions > 255:
+            raise ValueError("Unencodable division size. Must be less or equal than 255.")
+
+    def encode(self, *, input_path: str, output_path: str, no_metadata: int = 0):
         filename, ext = os.path.splitext(os.path.basename(input_path))
         self._filename = filename
         self._extension = ext.split(".")[-1]
@@ -119,7 +124,8 @@ class MP4ArchiveFactory:
                                              '-colorspace': 'rgb',
                                              '-crf': '0',
                                          })
-        writer.writeFrame(self._metadata_frame)
+        if not no_metadata:
+            writer.writeFrame(self._metadata_frame)
 
         tempbytes = []
         frame = np.array([[[0, 0, 0] for i in range(self._divisions)] for i in range(self._divisions)])

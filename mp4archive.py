@@ -21,8 +21,10 @@ mainop.add_argument('-d', '--decode', help="path to video to decode into file")
 parser.add_argument("-o", "--output", help="desired path for the output", required=True)
 
 parser.add_argument("-n", "--nometadata",
-                    help="enable if video doesn't have a metadata frame, enables heuristic checks", action="count",
+                    help="in encode mode, disables metadata generation. in decode mode, enables heuristic checks", action="count",
                     default=0)
+parser.add_argument("-d", "--divisions", help="number of divisions to divide the video into", type=int, default=15)
+parser.add_argument("-s", "--size", help="size of square video in pixels (SxS)", type=int, default=1080)
 
 args = parser.parse_args()
 
@@ -35,8 +37,8 @@ if args.encode:
             "output path should be an mp4 file. extension has been added for convenience, but program may crash if path is a directory.",
             RuntimeWarning)
         args.output += ".mp4"
-    encoder = MP4ArchiveFactory()
-    encoder.encode(input_path=args.encode, output_path=args.output)
+    encoder = MP4ArchiveFactory(size=args.size, divisions=args.divisions)
+    encoder.encode(input_path=args.encode, output_path=args.output, no_metadata=args.nometadata)
 
 elif args.decode:
     if not os.path.isfile(args.decode):
